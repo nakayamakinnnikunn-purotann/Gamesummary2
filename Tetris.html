@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>HTMLテトリス</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #f1f1f1;
+    }
+
+    #tetris {
+      border: 2px solid #333;
+    }
+
+    .row {
+      display: flex;
+    }
+
+    .cell {
+      width: 30px;
+      height: 30px;
+      background-color: #ddd;
+      border: 1px solid #fff;
+    }
+
+    .piece {
+      width: 30px;
+      height: 30px;
+      background-color: red;
+      border: 1px solid #fff;
+    }
+  </style>
+</head>
+<body>
+  <div id="tetris"></div>
+
+  <script>
+    const tetrisElement = document.getElementById('tetris');
+    const rows = 20;
+    const columns = 10;
+    const blockSize = 30;
+    let board = [];
+
+    // ボードの初期化
+    for (let row = 0; row < rows; row++) {
+      board[row] = [];
+      for (let col = 0; col < columns; col++) {
+        board[row][col] = 0;
+      }
+    }
+
+    // ボードの描画
+    function drawBoard() {
+      tetrisElement.innerHTML = '';
+
+      for (let row = 0; row < rows; row++) {
+        const rowElement = document.createElement('div');
+        rowElement.className = 'row';
+
+        for (let col = 0; col < columns; col++) {
+          const cellElement = document.createElement('div');
+          cellElement.className = board[row][col] === 1 ? 'piece' : 'cell';
+          rowElement.appendChild(cellElement);
+        }
+
+        tetrisElement.appendChild(rowElement);
+      }
+    }
+
+    drawBoard();
+  </script>
+</body>
+</html>
