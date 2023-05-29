@@ -1,513 +1,318 @@
+<!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
+  <title></title>
+  <style>
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    background: black;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  canvas {
+    border: 1px solid white;
+  }
+  </style>
 </head>
-<style>
-
-*{
-  padding: 0;
-  margin: 0;
-}
-
-/* ゲーム画面表示場所の大きさとか */
-#display {
-  width: calc(24px * 12);
-  height: calc(24px * 22);
-}
-
-/* 1マスの大きさとか色(デフォルト 黒) */
-.cell {
-  width: 22px;
-  height: 22px;
-  display:block;
-  float: left;
-  background-color: rgb(32, 32, 32);
-  border-left: 1px solid rgb(64, 64, 64);
-  border-top: 1px solid rgb(64, 64, 64);
-  border-right: 1px solid rgb(16, 16, 16);
-  border-bottom: 1px solid rgb(16, 16, 16);
-}
-
-/* 外側の壁用のマスの色(灰色) */
-.wall {
-  background-color: rgb(128, 128, 128);
-  border-left: 1px solid rgb(192, 192, 192);
-  border-top: 1px solid rgb(192, 192, 192);
-  border-right: 1px solid rgb(64, 64, 64);
-  border-bottom: 1px solid rgb(64, 64, 64);
-}
-
-/* 水色 */
-.I {
-  background-color: #3399ff;
-  border-left: 1px solid #99ccff;
-  border-top: 1px solid #99ccff;
-  border-right: 1px solid #0066ff;
-  border-bottom: 1px solid #0066ff;
-}
-
-/* 紫色 */
-.T {
-  background-color: #cc33cc;
-  border-left: 1px solid #cc66cc;
-  border-top: 1px solid #cc66cc;
-  border-right: 1px solid #cc00cc;
-  border-bottom: 1px solid #cc00cc;
-}
-
-/* 黄色 */
-.O {
-  background-color: #ccff00;
-  border-left: 1px solid #ffff00;
-  border-top: 1px solid #ffff00;
-  border-right: 1px solid #99cc00;
-  border-bottom: 1px solid #99cc00;
-}
-
-/* 赤色 */
-.Z {
-  background-color: #ff0033;
-  border-left: 1px solid #cc3366;
-  border-top: 1px solid #cc3366;
-  border-right: 1px solid #cc0033;
-  border-bottom: 1px solid #cc0033;
-}
-
-/* 黄緑色 */
-.S {
-  background-color: #66cc33;
-  border-left: 1px solid #99ff66;
-  border-top: 1px solid #99ff66;
-  border-right: 1px solid #339900;
-  border-bottom: 1px solid #339900;
-}
-
-/* オレンジ色 */
-.L {
-  background-color: #ff6600;
-  border-left: 1px solid #ff9966;
-  border-top: 1px solid #ff9966;
-  border-right: 1px solid #cc6633;
-  border-bottom: 1px solid #cc6633;
-}
-
-/* 青色 */
-.J {
-  background-color: #0033cc;
-  border-left: 1px solid #0066ff;
-  border-top: 1px solid #0066ff;
-  border-right: 1px solid #000099;
-  border-bottom: 1px solid #000099;
-}
-
-/* ボタン */
-#rotate, #left, #up, #right, #down {
-  width: 48px;
-  height: 48px;
-  font-size: 32px;
-}
-</style>
-<body> 
-
-  <!-- 表示場所 -->
-  <div id="display"></div>
-  <div id="buttons">
-    <input type="button" id="rotate" value="🔁">
-    <input type="button" id="left" value="←">
-    <input type="button" id="up" value="↑">
-    <input type="button" id="right" value="→">
-    <input type="button" id="down" value="↓">
-  </div>
-
+<body>
+<canvas width="320" height="640" id="game"></canvas>
 <script>
+// https://tetris.fandom.com/wiki/Tetris_Guideline
 
+// get a random integer between the range of [min,max]
+// @see https://stackoverflow.com/a/1527820/2124254
+function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
 
-// ブロックのでーた 
-function Block(x, y, type) {
-  this.x = x;
-  this.y = y;
-  this.type = type;
-  this.status = 0;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
-var block = new Block(4, 0, Math.floor(Math.random() * (7)));
-let fps = 1000 / 60;
-let field_width = 12;
-let field_height = 22;
-let Cell = {
-  None : 0,
-  Wall : 1,
-  I : 2,
-  O : 3,
-  S : 4,
-  Z : 5,
-  J : 6,
-  L : 7,
-  T : 8,
-};
-// カウンタ
-var cnt = 0;
 
-// 出力用メモリ
-var vram = [
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1],
-  ];
+// generate a new tetromino sequence
+// @see https://tetris.fandom.com/wiki/Random_Generator
+function generateSequence() {
+  const sequence = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'];
 
-// ゲームを管理するためのフィールド
-var field = [
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1],
-  ];
-
-// 各ブロックの状態の数 - 1
-let block_status = [1, 0, 1, 1, 3, 3, 3]
-// 各ブロックを格納する
-let blocks = [
-  [ // I
-    [
-      [Cell.I,Cell.I,Cell.I,Cell.I]
-    ],
-    [
-      [Cell.I],
-      [Cell.I],
-      [Cell.I],
-      [Cell.I]
-    ]
-  ],
-  [ // O
-    [
-      [Cell.O,Cell.O],
-      [Cell.O,Cell.O]
-    ]
-  ],
-  [ // S
-    [
-      [Cell.S,Cell.None],
-      [Cell.S,Cell.S],
-      [Cell.None,Cell.S]
-    ],
-    [
-      [Cell.None,Cell.S,Cell.S],
-      [Cell.S,Cell.S,Cell.None]
-    ]
-  ],
-  [ // Z
-    [
-      [Cell.None,Cell.Z],
-      [Cell.Z,Cell.Z],
-      [Cell.Z,Cell.None]
-    ],
-    [
-      [Cell.Z,Cell.Z,Cell.None],
-      [Cell.None,Cell.Z,Cell.Z]
-    ]
-  ],
-  [ // J
-    [
-      [Cell.None,Cell.J],
-      [Cell.None,Cell.J],
-      [Cell.J,Cell.J]
-    ],
-    [
-      [Cell.J,Cell.None,Cell.None],
-      [Cell.J,Cell.J,Cell.J]
-    ],
-    [
-      [Cell.J,Cell.J],
-      [Cell.J,Cell.None],
-      [Cell.J,Cell.None]
-    ],
-    [
-      [Cell.J,Cell.J,Cell.J],
-      [Cell.None,Cell.None,Cell.J]
-    ]
-  ],
-  [ // L
-    [
-      [Cell.L,Cell.None],
-      [Cell.L,Cell.None],
-      [Cell.L,Cell.L]
-    ],
-    [
-      [Cell.L,Cell.L,Cell.L],
-      [Cell.L,Cell.None,Cell.None]
-    ],
-    [
-      [Cell.L,Cell.L],
-      [Cell.None,Cell.L],
-      [Cell.None,Cell.L]
-    ],
-    [
-      [Cell.None,Cell.None,Cell.L],
-      [Cell.L,Cell.L,Cell.L]
-    ]
-  ],
-  [ // T
-    [
-      [Cell.T,Cell.None],
-      [Cell.T,Cell.T],
-      [Cell.T,Cell.None]
-    ],
-    [
-      [Cell.T,Cell.T,Cell.T],
-      [Cell.None,Cell.T,Cell.None]
-    ],
-    [
-      [Cell.None,Cell.T],
-      [Cell.T,Cell.T],
-      [Cell.None,Cell.T]
-    ],
-    [
-      [Cell.None,Cell.T,Cell.None],
-      [Cell.T,Cell.T,Cell.T]
-    ]
-  ]
-];
-
-// 配列コピー
-// sa : コピー元配列
-// da : コピー先配列
-// sx : コピー元のx座標
-// sy : コピー元のy座標
-// dx : コピー先のx座標
-// dy : コピー先のy座標
-// width : コピーする幅
-// height : コピーする高さ
-// ignore : コピーしない値
-let copy = function(sa, da, sx, sy, dx, dy, ignore) {
-  let width = sa[0].length;
-  let height = sa.length;
-
-  for(var i = 0; i < height; i++) {
-    for(var j = 0; j < width; j++) {
-      if(sa[sy + i][sx + j] == ignore) continue;
-      da[dy + i][dx + j] = sa[sy + i][sx + j];
-    }
+  while (sequence.length) {
+    const rand = getRandomInt(0, sequence.length - 1);
+    const name = sequence.splice(rand, 1)[0];
+    tetrominoSequence.push(name);
   }
-};
+}
 
-// btypeでstatusなブロックが(x, y)な座標に設置できるか
-let checkOkeru = function(btype, status, x, y) {
-  console.log("status => " + status);
-  var b = blocks[btype][status];
-  let w = b[0].length;
-  let h = b.length;
-
-  for(var i = y; i < y + h; i++) {
-    for(var j = x; j < x + w; j++) {
-      if(b[i-y][j-x] == Cell.None) continue;
-      if(field[i][j] != Cell.None) return false;
-    }
+// get the next tetromino in the sequence
+function getNextTetromino() {
+  if (tetrominoSequence.length === 0) {
+    generateSequence();
   }
-  return true;
-};
 
-// vramをdisplayへ出力(vram to html)
-let disp = function() {
-  let d = document.getElementById("display"); // 出力場所の要素を取得
+  const name = tetrominoSequence.pop();
+  const matrix = tetrominos[name];
 
-  var s = ""; // displayへ書き込むhtmlを格納する変数
+  // I and O start centered, all others start in left-middle
+  const col = playfield[0].length / 2 - Math.ceil(matrix[0].length / 2);
 
-  for(var i = 0; i < field_height; i++) {
-    for(var j = 0; j < field_width; j++) {
-      s += "<div class='cell ";
-      switch(vram[i][j]) {
-      case Cell.Wall: s += "wall"; break;
-      case Cell.I: s += "I"; break;
-      case Cell.O: s += "O"; break;
-      case Cell.S: s += "S"; break;
-      case Cell.Z: s += "Z"; break;
-      case Cell.J: s += "J"; break;
-      case Cell.L: s += "L"; break;
-      case Cell.T: s += "T"; break;
-      case Cell.None: break;
+  // I starts on row 21 (-1), all others start on row 22 (-2)
+  const row = name === 'I' ? -1 : -2;
+
+  return {
+    name: name,      // name of the piece (L, O, etc.)
+    matrix: matrix,  // the current rotation matrix
+    row: row,        // current row (starts offscreen)
+    col: col         // current col
+  };
+}
+
+// rotate an NxN matrix 90deg
+// @see https://codereview.stackexchange.com/a/186834
+function rotate(matrix) {
+  const N = matrix.length - 1;
+  const result = matrix.map((row, i) =>
+    row.map((val, j) => matrix[N - j][i])
+  );
+
+  return result;
+}
+
+// check to see if the new matrix/row/col is valid
+function isValidMove(matrix, cellRow, cellCol) {
+  for (let row = 0; row < matrix.length; row++) {
+    for (let col = 0; col < matrix[row].length; col++) {
+      if (matrix[row][col] && (
+          // outside the game bounds
+          cellCol + col < 0 ||
+          cellCol + col >= playfield[0].length ||
+          cellRow + row >= playfield.length ||
+          // collides with another piece
+          playfield[cellRow + row][cellCol + col])
+        ) {
+        return false;
       }
-      s += "'></div>";
     }
   }
 
-  d.innerHTML = s; // 要素に書き込み
-}; 
+  return true;
+}
 
-// 描画関係
-let graph = function() {
-  copy(field, vram, 0, 0, 0, 0, -1, 0); // vramにfieldをコピー
-  copy(blocks[block.type][block.status], vram, 0, 0, block.x, block.y, 0); // vramにブロックをコピー
-  disp();
+// place the tetromino on the playfield
+function placeTetromino() {
+  for (let row = 0; row < tetromino.matrix.length; row++) {
+    for (let col = 0; col < tetromino.matrix[row].length; col++) {
+      if (tetromino.matrix[row][col]) {
+
+        // game over if piece has any part offscreen
+        if (tetromino.row + row < 0) {
+          return showGameOver();
+        }
+
+        playfield[tetromino.row + row][tetromino.col + col] = tetromino.name;
+      }
+    }
+  }
+
+  // check for line clears starting from the bottom and working our way up
+  for (let row = playfield.length - 1; row >= 0; ) {
+    if (playfield[row].every(cell => !!cell)) {
+
+      // drop every row above this one
+      for (let r = row; r >= 0; r--) {
+        for (let c = 0; c < playfield[r].length; c++) {
+          playfield[r][c] = playfield[r-1][c];
+        }
+      }
+    }
+    else {
+      row--;
+    }
+  }
+
+  tetromino = getNextTetromino();
+}
+
+// show the game over screen
+function showGameOver() {
+  cancelAnimationFrame(rAF);
+  gameOver = true;
+
+  context.fillStyle = 'black';
+  context.globalAlpha = 0.75;
+  context.fillRect(0, canvas.height / 2 - 30, canvas.width, 60);
+
+  context.globalAlpha = 1;
+  context.fillStyle = 'white';
+  context.font = '36px monospace';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText('GAME OVER!', canvas.width / 2, canvas.height / 2);
+}
+
+const canvas = document.getElementById('game');
+const context = canvas.getContext('2d');
+const grid = 32;
+const tetrominoSequence = [];
+
+// keep track of what is in every cell of the game using a 2d array
+// tetris playfield is 10x20, with a few rows offscreen
+const playfield = [];
+
+// populate the empty state
+for (let row = -2; row < 20; row++) {
+  playfield[row] = [];
+
+  for (let col = 0; col < 10; col++) {
+    playfield[row][col] = 0;
+  }
+}
+
+// how to draw each tetromino
+// @see https://tetris.fandom.com/wiki/SRS
+const tetrominos = {
+  'I': [
+    [0,0,0,0],
+    [1,1,1,1],
+    [0,0,0,0],
+    [0,0,0,0]
+  ],
+  'J': [
+    [1,0,0],
+    [1,1,1],
+    [0,0,0],
+  ],
+  'L': [
+    [0,0,1],
+    [1,1,1],
+    [0,0,0],
+  ],
+  'O': [
+    [1,1],
+    [1,1],
+  ],
+  'S': [
+    [0,1,1],
+    [1,1,0],
+    [0,0,0],
+  ],
+  'Z': [
+    [1,1,0],
+    [0,1,1],
+    [0,0,0],
+  ],
+  'T': [
+    [0,1,0],
+    [1,1,1],
+    [0,0,0],
+  ]
 };
 
-// 処理
-let process = function() {
-  if(checkOkeru(block.type, block.status, block.x, block.y + 1)) block.y++; // 置ける
-  else next();  // 置けない
+// color of each tetromino
+const colors = {
+  'I': 'cyan',
+  'O': 'yellow',
+  'T': 'purple',
+  'S': 'green',
+  'Z': 'red',
+  'J': 'blue',
+  'L': 'orange'
 };
 
-// y行目を消して上のブロックを下げる
-let delline = function(y) {
-  for(var i = y; i > 0; i--) {
-    for(var j = 1; j < field_width - 1; j++) {
-      field[i][j] = field[i-1][j];
+let count = 0;
+let tetromino = getNextTetromino();
+let rAF = null;  // keep track of the animation frame so we can cancel it
+let gameOver = false;
+
+// game loop
+function loop() {
+  rAF = requestAnimationFrame(loop);
+  context.clearRect(0,0,canvas.width,canvas.height);
+
+  // draw the playfield
+  for (let row = 0; row < 20; row++) {
+    for (let col = 0; col < 10; col++) {
+      if (playfield[row][col]) {
+        const name = playfield[row][col];
+        context.fillStyle = colors[name];
+
+        // drawing 1 px smaller than the grid creates a grid effect
+        context.fillRect(col * grid, row * grid, grid-1, grid-1);
+      }
     }
   }
-};
 
-// 置けなくなったら
-let next = function() {  
-  // fieldに固定
-copy(blocks[block.type][block.status], field, 0, 0, block.x, block.y, 0);
-  
-  // 消せる行があるか調べる
-  for(var i = 0; i < field_height - 1; i++){
-    var cnt = 0;
-    for(var j = 0; j < field_width; j++){
-      cnt++;
-      if(field[i][j] == Cell.None) break;
+  // draw the active tetromino
+  if (tetromino) {
+
+    // tetromino falls every 35 frames
+    if (++count > 35) {
+      tetromino.row++;
+      count = 0;
+
+      // place piece if it runs into anything
+      if (!isValidMove(tetromino.matrix, tetromino.row, tetromino.col)) {
+        tetromino.row--;
+        placeTetromino();
+      }
     }
-    if(cnt == field_width) delline(i);
+
+    context.fillStyle = colors[tetromino.name];
+
+    for (let row = 0; row < tetromino.matrix.length; row++) {
+      for (let col = 0; col < tetromino.matrix[row].length; col++) {
+        if (tetromino.matrix[row][col]) {
+
+          // drawing 1 px smaller than the grid creates a grid effect
+          context.fillRect((tetromino.col + col) * grid, (tetromino.row + row) * grid, grid-1, grid-1);
+        }
+      }
+    }
+  }
+}
+
+// listen to keyboard events to move the active tetromino
+document.addEventListener('keydown', function(e) {
+  if (gameOver) return;
+
+  // left and right arrow keys (move)
+  if (e.which === 37 || e.which === 39) {
+    const col = e.which === 37
+      ? tetromino.col - 1
+      : tetromino.col + 1;
+
+    if (isValidMove(tetromino.matrix, tetromino.row, col)) {
+      tetromino.col = col;
+    }
   }
 
-  // 次のブロックを登録
-  block.type = Math.floor(Math.random() * (7));
-  block.x = 4;
-  block.y = 0;
-  block.status = 0;
-};
-
-// main loop
-let loop = function() {
-  console.log(cnt++);
-  process();
-  setTimeout(loop, 1000);
-};
-
-// ボタンクリックイベント
-document.getElementById("left").addEventListener("click", function() {
-  if(checkOkeru(block.type, block.status, block.x - 1, block.y)) block.x--;
-});
-
-document.getElementById("up").addEventListener("click", function() {
-  while(checkOkeru(block.type, block.status, block.x, block.y + 1)){
-    block.y++;
+  // up arrow key (rotate)
+  if (e.which === 38) {
+    const matrix = rotate(tetromino.matrix);
+    if (isValidMove(matrix, tetromino.row, tetromino.col)) {
+      tetromino.matrix = matrix;
+    }
   }
-  next();
-});
 
-document.getElementById("down").addEventListener("click", function() {
-  process();
-});
+  // down arrow key (drop)
+  if(e.which === 40) {
+    const row = tetromino.row + 1;
 
-document.getElementById("right").addEventListener("click", function() {
-  if(checkOkeru(block.type, block.status, block.x + 1, block.y)) block.x++;
-});
+    if (!isValidMove(tetromino.matrix, row, tetromino.col)) {
+      tetromino.row = row - 1;
 
-document.getElementById("rotate").addEventListener("click", function() {block.status++;
-  if(block.status > block_status[block.type]) block.status = 0;
-  if(!checkOkeru(block.type, block.status, block.x, block.y)){
-    block.status--;
-    if(block.status < 0) block.status = block_status[block.type];
+      placeTetromino();
+      return;
+    }
+
+    tetromino.row = row;
   }
 });
 
-var rotateKey = true;
-
-document.addEventListener("keyup", function(e){
-  switch(e.keyCode) {
-	case 65: // 'a'
-  case 83: // 's'
-		rotateKey = true;
-    break;
- 
-	}
-});
-
-// キーイベント
-document.addEventListener("keydown", function(e) {
-	console.log("keycode = " + e.keyCode);
-  switch(e.keyCode) {
-  case 37: // ←
-    if(checkOkeru(block.type, block.status, block.x - 1, block.y)) block.x--; // 左に動かせるなら動かす
-    break;
-  case 38:  // ↑
-    while(checkOkeru(block.type, block.status, block.x, block.y + 1)){  //  下まで動かす
-      block.y++;
-    }
-    next();
-    break;
-  case 39: // →
-    if(checkOkeru(block.type, block.status, block.x + 1, block.y)) block.x++; // 右に動かせるなら動かす
-    break;
-  case 40: // ↓
-    process();  // 下に動かせるなら動かす
-    break;
-  case 65: // 'a'
-		if(!rotateKey) break;
-		rotateKey = false;
-    // 左に回転できるなら回転する
-    block.status--;
-    if(block.status < 0) block.status = block_status[block.type];
-    if(!checkOkeru(block.type, block.status, block.x, block.y)) {
-      block.status++;
-      if(block.status > block_status[block.type]) block.status = 0;
-    }
-    break;
-  case 83: // 's'
-    // 右に回転できるなら回転する
-		if(!rotateKey) break;
-		rotateKey = false;
-    block.status++;
-    if(block.status > block_status[block.type]) block.status = 0;
-    if(!checkOkeru(block.type, block.status, block.x, block.y)){
-      block.status--;
-      if(block.status < 0) block.status = block_status[block.type];
-    }
-    break;
-  }
-  console.log("block_status => " + block.status);
-});
-
-setInterval(graph, fps);
-loop(); // メインループを実行
-
+// start the game
+rAF = requestAnimationFrame(loop);
 </script>
 </body>
 </html>
